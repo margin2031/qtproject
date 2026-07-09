@@ -14,19 +14,19 @@ SerialWorker::SerialWorker(QObject *parent) : QObject(parent), m_isLogging(false
 
     connect(m_serial, &QSerialPort::readyRead, this, &SerialWorker::readData);
 
-    QTimer *simTimer = new QTimer(this);
-    connect(simTimer, &QTimer::timeout, this, [this]() {
-        if (!m_serial->isOpen() && !m_dataFlowEnabled) return;
+    // QTimer *simTimer = new QTimer(this);
+    // connect(simTimer, &QTimer::timeout, this, [this]() {
+    //     if (!m_serial->isOpen() && !m_dataFlowEnabled) return;
 
-        QString rawLine;
-        for(int i = 0; i < 7; ++i) {
-            rawLine += QString::number(rand() % 1000) + "\t";
-        }
-        rawLine += QString::number(1000 + rand() % 30) + "\n";
-        m_buffer.append(rawLine.toUtf8());
-        readData();
-    });
-    simTimer->start(100);
+    //     QString rawLine;
+    //     for(int i = 0; i < 7; ++i) {
+    //         rawLine += QString::number(rand() % 1000) + "\t";
+    //     }
+    //     rawLine += QString::number(1000 + rand() % 30) + "\n";
+    //     m_buffer.append(rawLine.toUtf8());
+    //     readData();
+    // });
+    // simTimer->start(100);
 }
 
 SerialWorker::~SerialWorker()
