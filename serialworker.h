@@ -32,6 +32,7 @@ private slots:
 
 private:
     QString m_separator;
+    int m_logPointCount;
     QSerialPort *m_serial;
     QFile *m_logFile;
     QTextStream *m_logStream;
