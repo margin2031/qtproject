@@ -83,6 +83,7 @@ bool SerialWorker::startLogging(const QString &filePath, const QString &separato
         *m_logStream << "Timestamp" << m_separator << "Ch1,  мм x 10^4" << m_separator << "Ch2,  мм x 10^4"
                      << m_separator << "Ch3,  мм x 10^4" << m_separator << "Ch4,  мм x 10^4" << m_separator
                      << "Ch5,  мм x 10^4" << m_separator << "Ch6,  мм x 10^4" << m_separator << "Pressure, bar\n";
+        m_logPointCount = 0;
         m_isLogging = true;
         return true;
     } else {
@@ -128,7 +129,8 @@ void SerialWorker::readData()
         }
 
         if (m_isLogging && m_logStream) {
-            QString timeStamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
+            double relativeTime = m_logPointCount * 0.1;
+            QString timeStamp = Qstring::number(relativeTime, 'f', 1;
             *m_logStream << timeStamp;
 
             for (int i = 0; i < 7; ++i) {
@@ -149,6 +151,8 @@ void SerialWorker::readData()
             }
             *m_logStream << "\n";
             m_logStream->flush();
+
+            m_logPointCount++;
         }
 
         if (m_dataFlowEnabled) {
