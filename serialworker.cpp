@@ -1,5 +1,5 @@
 #include "serialworker.h"
-#include <QDateTime>
+#include <QDebug>
 #include <QThread>
 #include <QTimer>
 
@@ -80,7 +80,8 @@ bool SerialWorker::startLogging(const QString &filePath, const QString &separato
 
     if (m_logFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_logStream = new QTextStream(m_logFile);
-        *m_logStream << "Timestamp" << m_separator << "Ch1,  мм x 10^4" << m_separator << "Ch2,  мм x 10^4"
+        m_logSampleCount = 0;
+        *m_logStream << "Time, s" << m_separator << "Ch1,  мм x 10^4" << m_separator << "Ch2,  мм x 10^4"
                      << m_separator << "Ch3,  мм x 10^4" << m_separator << "Ch4,  мм x 10^4" << m_separator
                      << "Ch5,  мм x 10^4" << m_separator << "Ch6,  мм x 10^4" << m_separator << "Pressure, bar\n";
         m_isLogging = true;
@@ -128,8 +129,10 @@ void SerialWorker::readData()
         }
 
         if (m_isLogging && m_logStream) {
-            QString timeStamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
-            *m_logStream << timeStamp;
+            // Каждая записанная строка соответствует следующей десятой секунды.
+            ++m_logSampleCount;
+            *m_logStream << QString::number(m_logSampleCount / 10) << "."
+                         << QString::number(m_logSampleCount % 10);
 
             for (int i = 0; i < 7; ++i) {
                 *m_logStream << m_separator;

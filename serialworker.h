@@ -37,6 +37,7 @@ private:
     QTextStream *m_logStream;
     QByteArray m_buffer;
     bool m_isLogging;
+    quint64 m_logSampleCount = 0;
     bool m_dataFlowEnabled;
     QVector<int> m_logChannelsMask;
 };
