@@ -1,5 +1,6 @@
 #include "serialworker.h"
 #include <QDebug>
+#include <cmath>
 #include <QThread>
 #include <QTimer>
 
@@ -14,19 +15,19 @@ SerialWorker::SerialWorker(QObject *parent) : QObject(parent), m_isLogging(false
 
     connect(m_serial, &QSerialPort::readyRead, this, &SerialWorker::readData);
 
-    QTimer *simTimer = new QTimer(this);
-    connect(simTimer, &QTimer::timeout, this, [this]() {
-        if (!m_serial->isOpen() && !m_dataFlowEnabled) return;
+    // QTimer *simTimer = new QTimer(this);
+    // connect(simTimer, &QTimer::timeout, this, [this]() {
+    //     if (!m_serial->isOpen() && !m_dataFlowEnabled) return;
 
-        QString rawLine;
-        for(int i = 0; i < 7; ++i) {
-            rawLine += QString::number(rand() % 1000) + "\t";
-        }
-        rawLine += QString::number(1000 + rand() % 30) + "\n";
-        m_buffer.append(rawLine.toUtf8());
-        readData();
-    });
-    simTimer->start(100);
+    //     QString rawLine;
+    //     for(int i = 0; i < 7; ++i) {
+    //         rawLine += QString::number(rand() % 1000) + "\t";
+    //     }
+    //     rawLine += QString::number(1000 + rand() % 30) + "\n";
+    //     m_buffer.append(rawLine.toUtf8());
+    //     readData();
+    // });
+    // simTimer->start(100);
 }
 
 SerialWorker::~SerialWorker()
@@ -43,6 +44,8 @@ void SerialWorker::setLogChannelsMask(const QVector<int> &mask)
 void SerialWorker::connectToPort(const QString &portName, int baudRate)
 {
     if (m_serial->isOpen()) m_serial->close();
+    m_buffer.clear();
+    m_dataFlowEnabled = false;
 
     m_serial->setPortName(portName);
     m_serial->setBaudRate(baudRate);
@@ -52,6 +55,7 @@ void SerialWorker::connectToPort(const QString &portName, int baudRate)
     m_serial->setFlowControl(QSerialPort::NoFlowControl);
 
     if (m_serial->open(QIODevice::ReadWrite)) {
+        m_dataFlowEnabled = true;
         emit connectionStatus(true, "Подключено: " + portName);
     } else {
         emit connectionStatus(false, "Ошибка: " + m_serial->errorString());
@@ -60,6 +64,8 @@ void SerialWorker::connectToPort(const QString &portName, int baudRate)
 
 void SerialWorker::disconnectFromPort()
 {
+    m_buffer.clear();
+    m_dataFlowEnabled = false;
     if (m_serial->isOpen()) {
         m_serial->close();
         emit connectionStatus(false, "Отключено");
@@ -118,15 +124,23 @@ void SerialWorker::readData()
 
         QList<QByteArray> parts = line.split('\t');
 
-        for (int i = 0; i < 6 && i < parts.size(); ++i) {
-            bool ok = false;
-            double value = parts[i].toDouble(&ok);
+        // Один пакет: шесть каналов и давление, разделённые табуляцией.
+        if (parts.size() != 7) continue;
 
-            if (ok) {
-                double mmValue = (value / (2.5124e+05)) * 1e4;
+        bool valid = true;
+        for (int i = 0; i < parts.size(); ++i) {
+            bool ok = false;
+            const double value = parts[i].toDouble(&ok);
+            if (!ok || !std::isfinite(value)) {
+                valid = false;
+                break;
+            }
+            if (i < 6) {
+                const double mmValue = (value / SCALE_COEFF) * 1e4;
                 parts[i] = QByteArray::number(mmValue, 'f', 6);
             }
         }
+        if (!valid) continue;
 
         if (m_isLogging && m_logStream) {
             // Каждая записанная строка соответствует следующей десятой секунды.
@@ -155,13 +169,12 @@ void SerialWorker::readData()
         }
 
         if (m_dataFlowEnabled) {
-            if (parts.size() == 8) {
-                QVector<QString> values;
-                for (int i = 0; i < 8; i++) {
-                    values.append(parts[i]);
-                }
-                emit dataReceived(values);
+            QVector<QString> values;
+            values.reserve(7);
+            for (const auto &part : parts) {
+                values.append(QString::fromUtf8(part));
             }
+            emit dataReceived(values);
         }
     }
 }
