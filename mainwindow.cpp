@@ -16,8 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), m_pointCount(0), m_isTesting(false)
 {
     ui->setupUi(this);
-    setMinimumSize(1460, 800);
-    setMaximumSize(1460, 800);
+    setMinimumSize(900, 650);
 
     m_worker = new SerialWorker();
     m_workerThread = new QThread();
