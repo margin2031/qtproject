@@ -48,18 +48,42 @@ void SerialWorker::connectToPort(const QString &portName, int baudRate)
     m_dataFlowEnabled = false;
 
     m_serial->setPortName(portName);
+#ifdef Q_OS_WIN
+    // Отдельно проверяем открытие порта и установку выбранной скорости.
+    m_serial->setBaudRate(QSerialPort::Baud9600);
+#else
     m_serial->setBaudRate(baudRate);
+#endif
     m_serial->setDataBits(QSerialPort::Data8);
     m_serial->setParity(QSerialPort::NoParity);
     m_serial->setStopBits(QSerialPort::OneStop);
     m_serial->setFlowControl(QSerialPort::NoFlowControl);
 
-    if (m_serial->open(QIODevice::ReadWrite)) {
-        m_dataFlowEnabled = true;
-        emit connectionStatus(true, "Подключено: " + portName);
-    } else {
-        emit connectionStatus(false, "Ошибка: " + m_serial->errorString());
+    const auto portError = [this, &portName](const QString &stage) {
+        return QString("%1: %2. Ошибка Qt %3: %4 (Qt %5)")
+            .arg(portName, stage)
+            .arg(static_cast<int>(m_serial->error()))
+            .arg(m_serial->errorString(), QString::fromLatin1(qVersion()));
+    };
+
+    if (!m_serial->open(QIODevice::ReadWrite)) {
+        emit connectionStatus(false, portError("Не удалось открыть порт"));
+        return;
     }
+
+#ifdef Q_OS_WIN
+    if (!m_serial->setBaudRate(baudRate, QSerialPort::AllDirections)) {
+        const QString message = portError(
+            QString("Порт открыт на 9600, но переключение на %1 бод не удалось").arg(baudRate));
+        m_serial->close();
+        emit connectionStatus(false, message);
+        return;
+    }
+#endif
+
+    m_dataFlowEnabled = true;
+    emit connectionStatus(true, QString("Подключено: %1, %2 бод")
+                                    .arg(portName).arg(m_serial->baudRate()));
 }
 
 void SerialWorker::disconnectFromPort()
